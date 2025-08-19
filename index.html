@@ -220,7 +220,137 @@
     </footer>
 
     <!-- JavaScript -->
-    <script>
+    <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js"></script>
+  <script>
+  const firebaseConfig = {
+  apiKey: "AIzaSyCet2jx7iS8sAPvJxQ4oMOVI3HmuqUxT_A",
+  authDomain: "gudang-upt-gandul.firebaseapp.com",
+  projectId: "gudang-upt-gandul",
+  storageBucket: "gudang-upt-gandul.firebasestorage.app",
+  messagingSenderId: "996000637095",
+  appId: "1:996000637095:web:20e513b201889e00963b82",
+  measurementId: "G-06W2N5X29B"
+  };
+
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const inventoryRef = db.ref("inventory");
+  const outgoingRef = db.ref("outgoingRecords");
+
+  document.addEventListener('DOMContentLoaded', function() {
+      let inventory = [];
+      let outgoingRecords = [];
+
+      inventoryRef.on("value", (snapshot) => {
+          inventory = snapshot.val() ? Object.values(snapshot.val()) : [];
+          renderInventory();
+          populateItemDropdown();
+      });
+
+      outgoingRef.on("value", (snapshot) => {
+          outgoingRecords = snapshot.val() ? Object.values(snapshot.val()) : [];
+      });
+
+      function saveInventory() {
+          inventoryRef.set(inventory);
+      }
+
+      function saveOutgoing() {
+          outgoingRef.set(outgoingRecords);
+      }
+
+      function renderInventory() {
+          const tableBody = document.getElementById('inventoryTableBody');
+          tableBody.innerHTML = '';
+          if (inventory.length === 0) {
+              tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-sm text-gray-500 py-4">Tidak ada data persediaan.</td></tr>`;
+              return;
+          }
+          inventory.forEach((item) => {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                  <td class="px-6 py-4">${item.code}</td>
+                  <td class="px-6 py-4">${item.name}</td>
+                  <td class="px-6 py-4">${item.category || '-'}</td>
+                  <td class="px-6 py-4 ${item.stock < 10 ? 'text-red-600 font-bold' : ''}">${item.stock}</td>
+                  <td class="px-6 py-4">${item.unit}</td>
+                  <td class="px-6 py-4">${item.location || '-'}</td>
+                  <td class="px-6 py-4"><button class="text-red-600" onclick="hapusBarang('${item.code}')"><i class="fas fa-trash"></i></button></td>
+              `;
+              tableBody.appendChild(row);
+          });
+      }
+
+      window.hapusBarang = function(code) {
+          if (confirm(`Yakin ingin menghapus barang ${code}?`)) {
+              inventory = inventory.filter(item => item.code !== code);
+              saveInventory();
+          }
+      }
+
+      document.getElementById('addItemForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const newItem = {
+              code: document.getElementById('itemCode').value,
+              name: document.getElementById('itemName').value,
+              category: document.getElementById('itemCategory').value,
+              unit: document.getElementById('itemUnit').value,
+              stock: parseInt(document.getElementById('itemStock').value),
+              location: document.getElementById('itemLocation').value,
+              notes: document.getElementById('itemNotes').value
+          };
+          if (inventory.find(item => item.code === newItem.code)) {
+              alert('Kode barang sudah ada!');
+              return;
+          }
+          inventory.push(newItem);
+          saveInventory();
+          this.reset();
+          alert('Barang berhasil ditambahkan!');
+          document.getElementById('inventoryTab').click();
+      });
+
+      function populateItemDropdown() {
+          const dropdown = document.getElementById('outgoingItem');
+          dropdown.innerHTML = '<option value="">Pilih Barang</option>';
+          inventory.forEach(item => {
+              const option = document.createElement('option');
+              option.value = item.code;
+              option.textContent = `${item.code} - ${item.name} (Stok: ${item.stock} ${item.unit})`;
+              dropdown.appendChild(option);
+          });
+      }
+
+      document.getElementById('outgoingForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const selectedItemCode = document.getElementById('outgoingItem').value;
+          const quantity = parseInt(document.getElementById('outgoingQuantity').value);
+          const date = document.getElementById('outgoingDate').value;
+
+          const itemIndex = inventory.findIndex(item => item.code === selectedItemCode);
+          if (itemIndex === -1) return alert('Barang tidak ditemukan!');
+          if (inventory[itemIndex].stock < quantity) return alert('Stok tidak cukup!');
+
+          inventory[itemIndex].stock -= quantity;
+          const record = {
+              itemCode: selectedItemCode,
+              itemName: inventory[itemIndex].name,
+              quantity,
+              date,
+              recipient: document.getElementById('outgoingRecipient').value,
+              department: document.getElementById('outgoingDepartment').value,
+              purpose: document.getElementById('outgoingPurpose').value
+          };
+          outgoingRecords.push(record);
+          saveInventory();
+          saveOutgoing();
+          this.reset();
+          alert('Pengeluaran berhasil dicatat!');
+      });
+  });
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(reg => {
       reg.onupdatefound = () => {
@@ -493,140 +623,8 @@
             border-bottom: 2px solid #2563eb;
         }
     </style>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js"></script>
-
-<script>
-  const firebaseConfig = {
-     apiKey: "AIzaSyCet2jx7iS8sAPvJxQ4oMOVI3HmuqUxT_A",
-  authDomain: "gudang-upt-gandul.firebaseapp.com",
-  projectId: "gudang-upt-gandul",
-  storageBucket: "gudang-upt-gandul.firebasestorage.app",
-  messagingSenderId: "996000637095",
-  appId: "1:996000637095:web:20e513b201889e00963b82",
-  measurementId: "G-06W2N5X29B"
-  };
-
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const inventoryRef = db.ref("inventory");
-  const outgoingRef = db.ref("outgoingRecords");
-
-  document.addEventListener('DOMContentLoaded', function() {
-      let inventory = [];
-      let outgoingRecords = [];
-
-      inventoryRef.on("value", (snapshot) => {
-          inventory = snapshot.val() ? Object.values(snapshot.val()) : [];
-          renderInventory();
-          populateItemDropdown();
-      });
-
-      outgoingRef.on("value", (snapshot) => {
-          outgoingRecords = snapshot.val() ? Object.values(snapshot.val()) : [];
-      });
-
-      function saveInventory() {
-          inventoryRef.set(inventory);
-      }
-
-      function saveOutgoing() {
-          outgoingRef.set(outgoingRecords);
-      }
-
-      function renderInventory() {
-          const tableBody = document.getElementById('inventoryTableBody');
-          tableBody.innerHTML = '';
-          if (inventory.length === 0) {
-              tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-sm text-gray-500 py-4">Tidak ada data persediaan.</td></tr>`;
-              return;
-          }
-          inventory.forEach((item) => {
-              const row = document.createElement('tr');
-              row.innerHTML = `
-                  <td class="px-6 py-4">${item.code}</td>
-                  <td class="px-6 py-4">${item.name}</td>
-                  <td class="px-6 py-4">${item.category || '-'}</td>
-                  <td class="px-6 py-4 ${item.stock < 10 ? 'text-red-600 font-bold' : ''}">${item.stock}</td>
-                  <td class="px-6 py-4">${item.unit}</td>
-                  <td class="px-6 py-4">${item.location || '-'}</td>
-                  <td class="px-6 py-4"><button class="text-red-600" onclick="hapusBarang('${item.code}')"><i class="fas fa-trash"></i></button></td>
-              `;
-              tableBody.appendChild(row);
-          });
-      }
-
-      window.hapusBarang = function(code) {
-          if (confirm(`Yakin ingin menghapus barang ${code}?`)) {
-              inventory = inventory.filter(item => item.code !== code);
-              saveInventory();
-          }
-      }
-
-      document.getElementById('addItemForm').addEventListener('submit', function(e) {
-          e.preventDefault();
-          const newItem = {
-              code: document.getElementById('itemCode').value,
-              name: document.getElementById('itemName').value,
-              category: document.getElementById('itemCategory').value,
-              unit: document.getElementById('itemUnit').value,
-              stock: parseInt(document.getElementById('itemStock').value),
-              location: document.getElementById('itemLocation').value,
-              notes: document.getElementById('itemNotes').value
-          };
-          if (inventory.find(item => item.code === newItem.code)) {
-              alert('Kode barang sudah ada!');
-              return;
-          }
-          inventory.push(newItem);
-          saveInventory();
-          this.reset();
-          alert('Barang berhasil ditambahkan!');
-          document.getElementById('inventoryTab').click();
-      });
-
-      function populateItemDropdown() {
-          const dropdown = document.getElementById('outgoingItem');
-          dropdown.innerHTML = '<option value="">Pilih Barang</option>';
-          inventory.forEach(item => {
-              const option = document.createElement('option');
-              option.value = item.code;
-              option.textContent = `${item.code} - ${item.name} (Stok: ${item.stock} ${item.unit})`;
-              dropdown.appendChild(option);
-          });
-      }
-
-      document.getElementById('outgoingForm').addEventListener('submit', function(e) {
-          e.preventDefault();
-          const selectedItemCode = document.getElementById('outgoingItem').value;
-          const quantity = parseInt(document.getElementById('outgoingQuantity').value);
-          const date = document.getElementById('outgoingDate').value;
-
-          const itemIndex = inventory.findIndex(item => item.code === selectedItemCode);
-          if (itemIndex === -1) return alert('Barang tidak ditemukan!');
-          if (inventory[itemIndex].stock < quantity) return alert('Stok tidak cukup!');
-
-          inventory[itemIndex].stock -= quantity;
-          const record = {
-              itemCode: selectedItemCode,
-              itemName: inventory[itemIndex].name,
-              quantity,
-              date,
-              recipient: document.getElementById('outgoingRecipient').value,
-              department: document.getElementById('outgoingDepartment').value,
-              purpose: document.getElementById('outgoingPurpose').value
-          };
-          outgoingRecords.push(record);
-          saveInventory();
-          saveOutgoing();
-          this.reset();
-          alert('Pengeluaran berhasil dicatat!');
-      });
-  });
 </script>
-
 </body>
 </html>
+
 
